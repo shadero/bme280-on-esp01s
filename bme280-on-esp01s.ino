@@ -3,6 +3,7 @@
 #include <ESP8266WebServer.h>
 #include <BME280_MOD-1022.h>
 #include <Arduino_JSON.h>
+#include <MHZ19.h>
 
 // Wi-Fi設定
 const char *ssid = "YOUR_SSID";
@@ -15,6 +16,9 @@ ESP8266WebServer server(80);
 float temperature = 0.0;
 float humidity    = 0.0;
 float pressure    = 0.0;
+
+// MHZ19
+MHZ19 mhz19;
 
 void readBME280()
 {
@@ -38,6 +42,12 @@ void setup() {
   BME280.writeOversamplingPressure(os1x);
   readBME280();
   Serial.println("BME280 start.");
+
+  // MHZ19のセットアップ
+  Serial.begin(9600); 
+  mhz19.begin(Serial);
+  mhz19.autoCalibration();
+  Serial.println("MHZ19 start.");
 
   // WiFiネットワーク接続
   Serial.print("Connecting to ");
@@ -67,6 +77,7 @@ void handle_OnConnect() {
   doc["temperature"] = temperature;
   doc["humidity"] = humidity;
   doc["pressure"] = pressure;
+  doc["co2"] = mhz19.getCO2();
   server.send(200, "application/json", JSON.stringify(doc));
 }
 
