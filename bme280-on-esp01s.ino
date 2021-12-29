@@ -41,34 +41,26 @@ void setup() {
   BME280.writeOversamplingHumidity(os1x);
   BME280.writeOversamplingPressure(os1x);
   readBME280();
-  Serial.println("BME280 start.");
 
   // MHZ19のセットアップ
   Serial.begin(9600); 
   mhz19.begin(Serial);
   mhz19.autoCalibration();
-  Serial.println("MHZ19 start.");
 
   // WiFiネットワーク接続
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+    delay(1);
   }
-  Serial.println("");
-  Serial.println("WiFi connected");
 
   // 固定IPアドレスの設定
   WiFi.config(ip, WiFi.gatewayIP(), WiFi.subnetMask());
-  Serial.println(WiFi.localIP());
 
   // WEBサーバー開始
   server.on("/", handle_OnConnect);
+  server.on("/calibrate", co2Calibrate);
   server.onNotFound(handle_NotFound);
   server.begin();
-  Serial.println("Server started");
 }
 
 void handle_OnConnect() {
@@ -79,6 +71,11 @@ void handle_OnConnect() {
   doc["pressure"] = pressure;
   doc["co2"] = mhz19.getCO2();
   server.send(200, "application/json", JSON.stringify(doc));
+}
+
+void co2Calibrate() {
+  mhz19.calibrate();
+  server.send(200, "text/plain", "Calibrate complete");
 }
 
 void handle_NotFound() {
