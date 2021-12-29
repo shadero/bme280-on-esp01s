@@ -5,10 +5,9 @@
 #include <Arduino_JSON.h>
 #include <MHZ19.h>
 
-// Wi-Fi設定
+// ネットワーク設定
 const char *ssid = "YOUR_SSID";
 const char *password = "YOUR_PWD";
-// IP設定
 IPAddress ip(192, 168, 0, 64);
 ESP8266WebServer server(80);
 
@@ -45,7 +44,9 @@ void setup() {
   // MHZ19のセットアップ
   Serial.begin(9600); 
   mhz19.begin(Serial);
-  mhz19.autoCalibration();
+  // 24時間毎にその期間のCO2濃度の最低値を400ppmとみなしてキャリブレーションする機能。
+  // 屋内環境では役に立たないのでオフにする。(毎日換気とかしてらんない！)
+  mhz19.autoCalibration(false); 
 
   // WiFiネットワーク接続
   WiFi.begin(ssid, password);
@@ -59,7 +60,6 @@ void setup() {
   // WEBサーバー開始
   server.on("/", handle_OnConnect);
   server.on("/calibrate", co2Calibrate);
-  server.onNotFound(handle_NotFound);
   server.begin();
 }
 
@@ -75,11 +75,7 @@ void handle_OnConnect() {
 
 void co2Calibrate() {
   mhz19.calibrate();
-  server.send(200, "text/plain", "Calibrate complete");
-}
-
-void handle_NotFound() {
-  server.send(404, "text/plain", "Not found");
+  server.send(200, "text/plain", "Calibrate complete!");
 }
 
 void loop() {
