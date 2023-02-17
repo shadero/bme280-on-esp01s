@@ -6,10 +6,11 @@
 #include <MHZ19.h>
 
 // ネットワーク設定
-const char *ssid = "YOUR_SSID";
-const char *password = "YOUR_PWD";
-IPAddress ip(192, 168, 0, 64);
+const char *ssid = "";
+const char *password = "";
+IPAddress ip(192, 168, 0, );
 ESP8266WebServer server(80);
+const String name = "living";
 
 // BME280
 float temperature = 0.0;
@@ -44,8 +45,7 @@ void setup() {
   // MHZ19のセットアップ
   Serial.begin(9600); 
   mhz19.begin(Serial);
-  // 24時間毎にその期間のCO2濃度の最低値を400ppmとみなしてキャリブレーションする機能。
-  // 屋内環境では役に立たないのでオフにする。(毎日換気とかしてらんない！)
+  // 24時間毎にその期間のCO2濃度の最低値を400ppmとみなしてキャリブレーションする機能。いらないので切る。
   mhz19.autoCalibration(false); 
 
   // WiFiネットワーク接続
@@ -60,17 +60,39 @@ void setup() {
   // WEBサーバー開始
   server.on("/", handle_OnConnect);
   server.on("/calibrate", co2Calibrate);
+  server.on("/metrics", metric);
   server.begin();
+}
+
+// 雑関数
+void add_metric(String *p, String metricName, String help, String value, String label = "") {
+  *p += "# HELP " + metricName + " " + help + "\n";
+  *p += "# TYPE " + metricName + " gauge\n";
+  *p += metricName + label + " " + value + "\n";
 }
 
 void handle_OnConnect() {
   readBME280();
+
   JSONVar doc;
   doc["temperature"] = temperature;
   doc["humidity"] = humidity;
   doc["pressure"] = pressure;
   doc["co2"] = mhz19.getCO2();
   server.send(200, "application/json", JSON.stringify(doc));
+}
+
+void metric() {
+  readBME280();
+  String body = "";
+  
+  String label = "{device_name=\"" + name + "\"}";
+
+  add_metric(&body, "environment_temperature", "temperature(celsius)", String(temperature), label);
+  add_metric(&body, "environment_humidity", "humidity(percent)", String(humidity), label);
+  add_metric(&body, "environment_pressure", "pressure(hPa)", String(pressure), label);
+  add_metric(&body, "environment_co2", "co2(ppm)", String(mhz19.getCO2()), label);
+  server.send(200, "text/plain", body);
 }
 
 void co2Calibrate() {
